@@ -1,9 +1,9 @@
-﻿using Akka;
-using Akka.Actor;
-using Akka.Configuration;
+﻿using Akka.Actor;
 using Serilog;
 using System;
 using System.Threading;
+using TaskHost.Actors;
+using TaskHost.Contracts;
 
 namespace TaskHost
 {
@@ -59,7 +59,17 @@ namespace TaskHost
 		{
 			using (ActorSystem actorSystem = ActorSystem.Create("TaskRunner"))
 			{
-				// TODO: Define actor types.
+				Log.Verbose("About to get handle to actor...");
+				IActorRef taskRunner = actorSystem.ActorOf<TaskRunner>("Runner1");
+
+				Log.Verbose("About to invoke actor...");
+				taskRunner.Tell(
+					new StartTask("do something")
+				);
+
+				Log.Verbose("Sleeping for 2 seconds...");
+				Thread.Sleep(2000);
+				Log.Verbose("Done.");
 			}
 		}
 
@@ -70,7 +80,7 @@ namespace TaskHost
 		{
 			Log.Logger =
 				new LoggerConfiguration()
-					.MinimumLevel.Information()
+					.MinimumLevel.Verbose()
 					.WriteTo.LiterateConsole()
 					.Enrich.WithMachineName()
 					.Enrich.WithProcessId()
