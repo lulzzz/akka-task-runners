@@ -59,17 +59,26 @@ namespace TaskHost
 		{
 			using (ActorSystem actorSystem = ActorSystem.Create("TaskRunner"))
 			{
-				Log.Verbose("About to get handle to actor...");
-				IActorRef taskRunner = actorSystem.ActorOf<TaskRunner>("Runner1");
+				IActorRef controller = actorSystem.ActorOf<TaskController>("TaskController");
 
-				Log.Verbose("About to invoke actor...");
-				taskRunner.Tell(
-					new StartTask("do something")
+				const int taskCount = 20;
+
+				Log.Verbose("{ActorName}: Calling controller to run {TaskCount} tasks...", nameof(Program), taskCount);
+				for (int taskId = 1; taskId <= taskCount; taskId++)
+				{
+					controller.Tell(
+						new RunTask("do something #" + taskId)
+					);
+				}
+
+				TimeSpan sleepTime = TimeSpan.FromSeconds(3);
+				Log.Verbose(
+					"{ActorName}: Sleeping for {SleepTime}ms...",
+					nameof(Program),
+					sleepTime.TotalMilliseconds
 				);
-
-				Log.Verbose("Sleeping for 2 seconds...");
-				Thread.Sleep(2000);
-				Log.Verbose("Done.");
+                Thread.Sleep(sleepTime);
+				Log.Verbose("{ActorName}: Done.", nameof(Program));
 			}
 		}
 
