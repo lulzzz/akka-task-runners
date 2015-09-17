@@ -1,7 +1,7 @@
 ﻿using Akka.Actor;
+using Akka.Routing;
 using Serilog;
 using System;
-using System.Collections.Generic;
 
 namespace TaskHost.Actors
 {
@@ -20,12 +20,9 @@ namespace TaskHost.Actors
 		public static readonly int MaximumTaskRunnerCount = 5;
 
 		/// <summary>
-		///		A queue of task-runners available running tasks.
+		///		The router for the task-runners.
 		/// </summary>
-		/// <remarks>
-		///		Using a queue here to handle round-robin for dispatch to the child actors.
-		/// </remarks>
-		readonly Queue<IActorRef> _taskRunners = new Queue<IActorRef>();
+		IActorRef _taskRunnerRouter;
 
 		/// <summary>
 		///		Create a new task-controller actor.
@@ -46,20 +43,17 @@ namespace TaskHost.Actors
 		protected override void PreStart()
 		{
 			Log.Information(
-				"{ActorPath}: Configuring {TaskRunnerCount} child task-runners...",
+				"{ActorPath}: Configuring pool of {TaskRunnerCount} child task-runners...",
 				Self.Path.ToUserRelativePath(),
 				MaximumTaskRunnerCount
 			);
 
-			for (int taskRunnerId = 1; taskRunnerId <= MaximumTaskRunnerCount; taskRunnerId++)
-			{
-				_taskRunners.Enqueue(
-					Context.ActorOf<TaskRunner>(
-						name: "TaskRunner" + taskRunnerId.ToString("00")
-					)
+			Props taskRunnerPool =
+				Props.Create<TaskRunner>().WithRouter(
+					new RoundRobinPool(5)
 				);
-            }
-
+			_taskRunnerRouter = Context.ActorOf(taskRunnerPool, "TaskRunners");
+			
 			Log.Information(
 				"{ActorPath}: {TaskRunnerCount} child task-runners configured.",
 				Self.Path.ToUserRelativePath(),
@@ -84,17 +78,9 @@ namespace TaskHost.Actors
 				runTask.What
 			);
 
-			IActorRef nextRunner = _taskRunners.Dequeue();
-			try
-			{
-				nextRunner.Tell(
-					new StartTask(runTask.What)
-				);
-			}
-			finally
-			{
-				_taskRunners.Enqueue(nextRunner); // Back of the line, for you, buddy
-			}
+			_taskRunnerRouter.Tell(
+				new StartTask(runTask.What)
+			);
 		}
 
 		/// <summary>

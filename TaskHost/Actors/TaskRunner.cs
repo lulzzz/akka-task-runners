@@ -20,11 +20,24 @@ namespace TaskHost.Actors
 		readonly Random _delayGenerator = new Random();
 
 		/// <summary>
+		///		The task-controller actor.
+		/// </summary>
+		ActorSelection _taskController;
+
+		/// <summary>
 		///		Create a new task-runner actor.
 		/// </summary>
 		public TaskRunner()
 		{
 			Receive<StartTask>(startTask => OnStartTask(startTask));
+        }
+
+		/// <summary>
+		///		Called when the actor is being started.
+		/// </summary>
+		protected override void PreStart()
+		{
+			_taskController = Context.ActorSelection("../..");
         }
 
 		/// <summary>
@@ -45,7 +58,7 @@ namespace TaskHost.Actors
 			);
 
 			// Report to controller.
-			Context.Parent.Tell(
+			_taskController.Tell(
 				new TaskStarted(
 					startTask.What,
 					byWho: Self.Path.Name
@@ -68,7 +81,7 @@ namespace TaskHost.Actors
 			);
 
 			// Report to controller.
-			Context.Parent.Tell(
+			_taskController.Tell(
 				new TaskCompleted(
 					startTask.What,
 					byWho: Self.Path.Name,
