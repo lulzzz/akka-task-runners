@@ -22,23 +22,34 @@ namespace TaskHost.Actors
 		/// <summary>
 		///		The router for the task-runners.
 		/// </summary>
-		IActorRef _taskRunnerRouter;
+		IActorRef	_taskRunnerRouter;
+
+		/// <summary>
+		///		The number of tasks still running.
+		/// </summary>
+		int			_outstandingTaskCount;
+
+		/// <summary>
+		///		Is a shut-down request for the controller currently pending?
+		/// </summary>
+		bool		_shutdownPending;
 
 		/// <summary>
 		///		Create a new task-controller actor.
 		/// </summary>
 		public TaskController()
 		{
-			Receive<RunTask>(
-				runTask => OnRunTask(runTask)
-			);
-			Receive<TaskStarted>(
-				taskStarted => OnTaskStarted(taskStarted)
-			);
-			Receive<TaskCompleted>(
-				taskCompleted => OnTaskCompleted(taskCompleted)
-			);
-		}
+			Receive<RunTask>(runTask => OnRunTask(runTask));
+			Receive<TaskStarted>(taskStarted => OnTaskStarted(taskStarted));
+			Receive<TaskCompleted>(taskCompleted => OnTaskCompleted(taskCompleted));
+			Receive<Shutdown>(_ => OnShutdown());
+			Receive<GetOutstandingTaskCount>(_ =>
+			{
+				Sender.Tell(
+					new OutstandingTaskCount(_outstandingTaskCount)
+				);
+			});
+        }
 
 		/// <summary>
 		///		Called when the task-controller actor is started.
@@ -76,9 +87,10 @@ namespace TaskHost.Actors
 				throw new ArgumentNullException("runTask");
 
 			Log.Information(
-				"{ActorPath}: Received request to run task: {What}",
+				"{ActorPath}: Received request to run task: {What} ({TotalTaskCount} tasks now active)",
 				Self.Path.ToUserRelativePath(),
-				runTask.What
+				runTask.What,
+				++_outstandingTaskCount
 			);
 
 			_taskRunnerRouter.Tell(
@@ -98,10 +110,11 @@ namespace TaskHost.Actors
 				throw new ArgumentNullException("taskStarted");
 
 			Log.Information(
-				"{ActorPath}: Task started by task-runner '{TaskRunnerName}': {What}",
+				"{ActorPath}: Task started by task-runner '{TaskRunnerName}': {What} ({TotalTaskCount} tasks now active)",
 				Self.Path.ToUserRelativePath(),
 				taskStarted.ByWho,
-				taskStarted.What
+				taskStarted.What,
+				_outstandingTaskCount
 			);
         }
 
@@ -117,12 +130,47 @@ namespace TaskHost.Actors
 				throw new ArgumentNullException("taskCompleted");
 
 			Log.Information(
-				"{ActorPath}: Task completed by task-runner '{TaskRunnerName}' in {RunTime}: {What}",
+				"{ActorPath}: Task completed by task-runner '{TaskRunnerName}' in {RunTime}: {What} ({TotalTaskCount} tasks now active)",
 				Self.Path.ToUserRelativePath(),
 				taskCompleted.ByWho,
 				taskCompleted.RunTime,
-				taskCompleted.What
+				taskCompleted.What,
+				--_outstandingTaskCount
 			);
+
+			if (_shutdownPending)
+				StopIfAllRequestsComplete();
+        }
+
+		/// <summary>
+		///		Called to notify task controller that a shut-down request is now pending for it.
+		/// </summary>
+		void OnShutdown()
+		{
+			Log.Warning(
+				"{ActorPath}: Shut-down is now pending ({TotalTaskCount} tasks now active)",
+				Self.Path.ToUserRelativePath(),
+				_outstandingTaskCount
+			);
+
+			_shutdownPending = true;
+			StopIfAllRequestsComplete();
+        }
+
+		/// <summary>
+		///		Stop the controller if there are not outstanding requests.
+		/// </summary>
+		void StopIfAllRequestsComplete()
+		{
+			if (_outstandingTaskCount != 0)
+				return;
+
+			Log.Warning(
+				"{ActorPath}: Shut-down is now commencing, since there are no outstanding tasks. Shutting down task-runner router.",
+				Self.Path.ToUserRelativePath(),
+				_outstandingTaskCount
+			);
+			_taskRunnerRouter.Tell(PoisonPill.Instance);
 		}
 	}
 }

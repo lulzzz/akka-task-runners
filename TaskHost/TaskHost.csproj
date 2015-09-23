@@ -86,7 +86,10 @@
   <ItemGroup>
     <Compile Include="Actors\TaskController.cs" />
     <Compile Include="Actors\TaskRunner.cs" />
+    <Compile Include="Contracts\OutstandingTaskCount.cs" />
     <Compile Include="Contracts\RunTask.cs" />
+    <Compile Include="Contracts\GetOutstandingTaskCount.cs" />
+    <Compile Include="Contracts\Shutdown.cs" />
     <Compile Include="Contracts\TaskCompleted.cs" />
     <Compile Include="Contracts\TaskStarted.cs" />
     <Compile Include="Contracts\StartTask.cs" />

@@ -71,13 +71,32 @@ namespace TaskHost
 					);
 				}
 
-				TimeSpan sleepTime = TimeSpan.FromSeconds(3);
 				Log.Verbose(
-					"{ActorName}: Sleeping for {SleepTime}ms...",
-					nameof(Program),
-					sleepTime.TotalMilliseconds
+					"{ActorName}: Stopping controller...",
+					nameof(Program)
 				);
-                Thread.Sleep(sleepTime);
+
+				controller.Tell(Shutdown.Instance);
+
+				// Wait for task controller to observe the completion of all outstanding task.
+				using (Inbox inbox = Inbox.Create(actorSystem))
+				{
+					while (true)
+					{
+						inbox.Send(controller, GetOutstandingTaskCount.Instance);
+						OutstandingTaskCount outstandingTaskCount = (OutstandingTaskCount)inbox.ReceiveWhere(
+							message => message is OutstandingTaskCount
+						);
+
+						if (outstandingTaskCount.Count == 0)
+							break;
+
+						Thread.Sleep(
+							TimeSpan.FromMilliseconds(500)
+						);
+					}
+				}
+				
 				Log.Verbose("{ActorName}: Done.", nameof(Program));
 			}
 		}
