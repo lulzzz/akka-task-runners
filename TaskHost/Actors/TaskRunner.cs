@@ -49,7 +49,7 @@ namespace TaskHost.Actors
 		void OnStartTask(StartTask startTask)
 		{
 			if (startTask == null)
-				throw new ArgumentNullException("taskStarted");
+				throw new ArgumentNullException("startTask");
 
 			Log.Information(
 				"{ActorPath}: Runner is starting task: {What}",

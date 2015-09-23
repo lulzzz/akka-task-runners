@@ -35,7 +35,10 @@ namespace TaskHost.Actors
 			Receive<TaskStarted>(
 				taskStarted => OnTaskStarted(taskStarted)
 			);
-        }
+			Receive<TaskCompleted>(
+				taskCompleted => OnTaskCompleted(taskCompleted)
+			);
+		}
 
 		/// <summary>
 		///		Called when the task-controller actor is started.
@@ -92,7 +95,7 @@ namespace TaskHost.Actors
 		void OnTaskStarted(TaskStarted taskStarted)
 		{
 			if (taskStarted == null)
-				throw new ArgumentNullException("runTask");
+				throw new ArgumentNullException("taskStarted");
 
 			Log.Information(
 				"{ActorPath}: Task started by task-runner '{TaskRunnerName}': {What}",
@@ -111,7 +114,7 @@ namespace TaskHost.Actors
 		void OnTaskCompleted(TaskCompleted taskCompleted)
 		{
 			if (taskCompleted == null)
-				throw new ArgumentNullException("runTask");
+				throw new ArgumentNullException("taskCompleted");
 
 			Log.Information(
 				"{ActorPath}: Task completed by task-runner '{TaskRunnerName}' in {RunTime}: {What}",
